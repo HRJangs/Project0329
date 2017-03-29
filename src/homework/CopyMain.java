@@ -139,8 +139,6 @@ public class CopyMain extends JFrame implements ActionListener, Runnable{
 				}
 			}
 		}
-
-		
 	public void run(){
 		copy();
 	}

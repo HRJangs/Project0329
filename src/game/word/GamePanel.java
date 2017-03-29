@@ -5,13 +5,14 @@ import java.awt.Choice;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -21,7 +22,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-public class GamePanel extends JPanel implements ItemListener{
+public class GamePanel extends JPanel implements ItemListener , Runnable, ActionListener{
 	JPanel p_west; //왼쪽 컨트롤 영역
 	JPanel p_center; //단어 그래픽 처리 영역
 	JLabel la_user;//게임 로그인 유저명
@@ -36,14 +37,24 @@ public class GamePanel extends JPanel implements ItemListener{
 	InputStreamReader reader; 
 	BufferedReader buffr; //문자기반 버퍼 스트림
 	ArrayList<String> wordList = new ArrayList<String>();  //조사한 단어를 담아놓자 게임에 써먹기 위해
-	
+	ArrayList<Word> words = new ArrayList<Word>();
+	Thread thread;//단어게임을 진행할 스레드
+	Word word;
+	boolean flag=true;
 	
 	public GamePanel(GameWindow gamewindow) {
 		p_west = new JPanel();
 		//이 영역은 지금부터 그림을 그릴 영역이다
 		p_center= new JPanel(){
-			public void paint(Graphics g) {
-				g.drawString("고등어",200,300);
+			public void paintComponent(Graphics g) {
+				//기존그림 지우기
+				g.setColor(Color.white);
+				g.fillRect(0, 0, 750, 700);
+				g.setColor(Color.blue);
+				//모든 워드들에 대한 render();호출
+				for(int i=0;i<words.size();i++){
+					words.get(i).render(g);
+				}
 			}
 		};
 		this.gamewindow=gamewindow;
@@ -70,11 +81,12 @@ public class GamePanel extends JPanel implements ItemListener{
 		p_west.add(bt_pause);
 		p_west.add(la_score);
 		
+		bt_start.addActionListener(this);
 		add(p_center);
 		add(p_west,BorderLayout.WEST);
 		setVisible(false);//최초 안보임
 		getCategory();
-		
+	
 	}
 	//초이스 컴포넌트에 채워질 파일명 조사하기
 	public void getCategory(){
@@ -116,6 +128,7 @@ public class GamePanel extends JPanel implements ItemListener{
 							data = buffr.readLine();
 							if(data==null)break;
 							wordList.add(data);
+							createWord();
 						}
 				}
 			}catch (FileNotFoundException e) {
@@ -146,9 +159,48 @@ public class GamePanel extends JPanel implements ItemListener{
 				}
 			}
 	} 
+	//준비된 단어를 화면에 보여주자
+	public void createWord(){
+		for(int i=0;i<wordList.size();i++){
+			Word word = new Word(wordList.get(i),i*(75)+10,100);
+			//워드 객체명단 만들기
+			words.add(word);
+		}
+	}
+	public void startGame(){
+		if(thread==null){
+			thread = new Thread(this);
+			thread.start();
+		}
+	}
+	public void pauseGame(){
+		flag=false;
+	}
 	public void itemStateChanged(ItemEvent e) {
 		getWord();
 	}
-	
-	
+	public void actionPerformed(ActionEvent e) {
+		Object obj= e.getSource();
+		
+		if(obj==bt_start){
+			startGame();
+		}else if(obj==bt_pause){
+			pauseGame();
+		}
+	}
+	public void run() {
+		while(flag){
+			try {
+				thread.sleep(500);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			//모든 단어들에 대해서 tick();
+			//모든 단어들에 대해 render();
+			for(int i=0;i<words.size();i++){
+				words.get(i).tick();
+			}
+			p_center.repaint();
+		}
+	}
 }
